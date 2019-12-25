@@ -1,1 +1,6 @@
-A small weather bot
+A small weather bot.
+
+the_bot - основное тело бота;
+defs_weather_bot - функции;
+keyboards_weather_bot - клавиши;
+data.json - локальное хранилище.
