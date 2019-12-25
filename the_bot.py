@@ -1,38 +1,46 @@
-"""- Бот умеет смотреть погоду на сегодня для любого города. Ограничение: города, находящиеся за пределами России или
-Белоруссии, должны быть заданы на английском языке. По всей видимости проблема вызвана неполной локализацией под
-русский язык;
-- Запросы реализованы через библиотеку pyowm;
-- Использован API от OWM."""
-
 import keyboards_weather_bot as kb  # клавиатура
 import defs_weather_bot as defs  # проверка погоды
 import telebot
 import pyowm
 import json
 import os
+import redis
 
 token = os.environ['TELEGRAM_TOKEN']
 BOT = telebot.TeleBot(token)
+redis_url = os.environ.get('REDIS_URL')
 
-degree_sign = u'\N{DEGREE SIGN}'
-
-try:
-    data = json.load(open('data.json', 'r', encoding='utf-8'))
-except FileNotFoundError:
-    data = {
-        'states': {}
-    }
+if redis_url is None:
+    try:
+        data = json.load(open('data.json', 'r', encoding='utf-8'))
+    except FileNotFoundError:
+        data = {
+            'states': {}
+        }
+else:
+    redis_db = redis.from_url(redis_url)
+    raw_data = redis_db.get('data')
+    if raw_data is None:
+        data = {
+            'states': {}
+        }
+    else:
+        data = json.loads(raw_data)
 
 
 # изменение состояний
 def change_data(key, user_id, value):
     data[key][user_id] = value
-    json.dump(
-        data,
-        open('data.json', 'w', encoding='utf-8'),
-        indent=2,
-        ensure_ascii=False
-    )
+    if redis_url is None:
+        json.dump(
+            data,
+            open('data.json', 'w', encoding='utf-8'),
+            indent=2,
+            ensure_ascii=False
+        )
+    else:
+        redis_db = redis.from_url(redis_url)
+        redis_db.set('data', json.dumps(data))
 
 
 @BOT.message_handler(commands=['help'])
@@ -167,4 +175,5 @@ def city_handler(message, user_state, user_id):
         # =============================================================
 
 
-BOT.polling()
+if __name__ == '__main__':
+    BOT.polling()
